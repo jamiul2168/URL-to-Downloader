@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>🌐 Reliable All-in-One Downloader</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <div class="wrap glass">
+    <h1 class="title">🌐 Reliable All-in-One Downloader</h1>
+    <p class="sub">Paste any video link (YouTube, Facebook, Drive) or a direct file link.</p>
+
+    <div class="group">
+      <label>URL</label>
+      <input id="url" type="text" placeholder="Paste your video or file URL here"/>
+    </div>
+
+    <div class="group">
+      <label>Save As</label>
+      <input id="filename" type="text" placeholder="e.g., my_video" value="downloaded_media"/>
+    </div>
+
+    <div class="group">
+      <label>Format</label>
+      <div class="toggle">
+        <button id="btnVideo" class="btn active" data-mode="video">Video</button>
+        <button id="btnAudio" class="btn" data-mode="audio">Audio (MP3)</button>
+      </div>
+    </div>
+
+    <button id="start" class="primary">Start Download</button>
+
+    <div id="status" class="alert info" style="display:none;"></div>
+
+    <div id="progress" class="bar" style="display:none;">
+      <div class="inner">Working…</div>
+    </div>
+
+    <div id="result"></div>
+
+    <div class="logs">
+      <div class="logs-title">Logs & Tips</div>
+      <pre id="logbox">Logs will appear here after completion.</pre>
+    </div>
+  </div>
+
+<script>
+let mode = "video";
+const $ = id => document.getElementById(id);
+const urlEl = $("url"), nameEl = $("filename"), statusEl = $("status");
+const resultEl = $("result"), logbox = $("logbox"), startBtn = $("start");
+const progress = $("progress"), btnVideo = $("btnVideo"), btnAudio = $("btnAudio");
+
+btnVideo.onclick = () => { mode = "video"; btnVideo.classList.add("active"); btnAudio.classList.remove("active"); }
+btnAudio.onclick = () => { mode = "audio"; btnAudio.classList.add("active"); btnVideo.classList.remove("active"); }
+
+function showStatus(html, cls="info"){ statusEl.style.display="block"; statusEl.className="alert "+cls; statusEl.innerHTML=html; }
+function setProgress(v){ progress.style.display = v ? "block" : "none"; }
+
+$("start").onclick = async () => {
+  resultEl.innerHTML = ""; logbox.textContent = "Starting download…";
+  const url = urlEl.value.trim(), filename = nameEl.value.trim();
+  if(!url || !filename){ showStatus("<b>Error:</b> Please provide both URL and filename.","error"); return; }
+
+  startBtn.disabled = true; setProgress(true); showStatus("<i>Initiating download…</i>","info");
+  try{
+    const r = await fetch("/api/download", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({url, filename, mode})
+    });
+    const data = await r.json();
+    if(!data.ok){ showStatus("<b>Download Error:</b> "+(data.error||"Unknown"),"error"); logbox.textContent = data.error || "No details."; }
+    else{
+      showStatus("<b>Download successful!</b> File is ready.","success");
+      logbox.textContent = `Downloaded file: ${data.file}\nSize: ${data.size} bytes`;
+      resultEl.innerHTML = `<a class="dl" href="${data.download_url}">Click Here to Download "${data.file}"</a>`;
+    }
+  }catch(e){
+    showStatus("<b>Unexpected error:</b> "+e.message,"error"); logbox.textContent = e.stack || String(e);
+  }finally{
+    setProgress(false); startBtn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
