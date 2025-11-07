@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 import yt_dlp
 import os
 
 app = Flask(__name__)
-CORS(app)  # ✅ Allow all origins
+
+# ✅ Enable CORS for all origins (Vercel, localhost, etc.)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 DOWNLOAD_FOLDER = "downloads"
 if not os.path.exists(DOWNLOAD_FOLDER):
@@ -20,6 +22,7 @@ def home():
 
 
 @app.route('/api/download', methods=['POST'])
+@cross_origin(origin='*')
 def download_video():
     try:
         data = request.get_json()
@@ -67,6 +70,7 @@ def download_video():
 
 
 @app.route('/file/<path:filename>')
+@cross_origin(origin='*')
 def serve_file(filename):
     file_path = os.path.join(DOWNLOAD_FOLDER, filename)
     if os.path.exists(file_path):
