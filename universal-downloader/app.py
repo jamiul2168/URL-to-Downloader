@@ -3,31 +3,38 @@ from flask import Flask, request, render_template, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 import yt_dlp
 
+# === ফোল্ডার সেটআপ ===
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
-COOKIE_FILE = os.path.join(BASE_DIR, "cookies.txt")  # ✅ cookies.txt ফাইল
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# === Flask App তৈরি ===
 app = Flask(__name__)
 
+# === Helper Function ===
 def slugify(text: str) -> str:
     text = re.sub(r"[^\w\-. ]+", "", (text or "")).strip().replace(" ", "_")
     return secure_filename(text) or f"file_{uuid.uuid4().hex}"
 
+# === yt-dlp অপশন ===
 def ydl_opts(mode: str, base_out: str) -> dict:
     opts = {
         "outtmpl": os.path.join(DOWNLOAD_DIR, base_out + ".%(ext)s"),
         "restrictfilenames": True,
-        "noprogress": True,
         "nocheckcertificate": True,
+        "noprogress": True,
         "quiet": True,
         "merge_output_format": "mp4",
     }
 
-    # ✅ cookies.txt যুক্ত করা (যদি থাকে)
-    if os.path.exists(COOKIE_FILE):
-        opts["cookiefile"] = COOKIE_FILE
+    # ✅ Render Environment Variable থেকে cookies তৈরি
+    cookie_data = os.environ.get("COOKIE_TEXT", "")
+    if cookie_data:
+        with open(os.path.join(BASE_DIR, "cookies.txt"), "w", encoding="utf-8") as f:
+            f.write(cookie_data)
+        opts["cookiefile"] = os.path.join(BASE_DIR, "cookies.txt")
 
+    # === Audio বা Video সেটিং ===
     if mode == "audio":
         opts.update({
             "format": "bestaudio/best",
@@ -41,10 +48,12 @@ def ydl_opts(mode: str, base_out: str) -> dict:
         opts.update({"format": "bv*+ba/b"})
     return opts
 
+# === হোমপেজ ===
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
 
+# === ডাউনলোড API ===
 @app.route("/api/download", methods=["POST"])
 def api_download():
     data = request.get_json(silent=True) or request.form
@@ -67,14 +76,16 @@ def api_download():
                 if not filepath:
                     filepath = ydl.prepare_filename(info)
 
-        # ✅ ফাইনাল ফাইল খোঁজা
+        # === ফাইনাল ফাইল খোঁজা ===
+        final = None
         for ext in [".mp3", ".m4a", ".mp4", ".webm", ".mkv"]:
-            full = os.path.join(DOWNLOAD_DIR, filename + ext)
-            if os.path.exists(full):
-                final = full
+            path = os.path.join(DOWNLOAD_DIR, filename + ext)
+            if os.path.exists(path):
+                final = path
                 break
-        else:
-            return jsonify({"ok": False, "error": "Download finished but file not found."}), 500
+
+        if not final:
+            return jsonify({"ok": False, "error": "File not found after download."}), 500
 
         size = os.path.getsize(final)
         return jsonify({
@@ -89,12 +100,14 @@ def api_download():
     except Exception as e:
         return jsonify({"ok": False, "error": f"Unexpected error: {e}"}), 500
 
+# === ফাইল সার্ভ করা ===
 @app.route("/file/<path:filename>", methods=["GET"])
 def serve_file(filename):
-    safe = os.path.join(DOWNLOAD_DIR, os.path.basename(filename))
-    if not os.path.exists(safe):
+    path = os.path.join(DOWNLOAD_DIR, os.path.basename(filename))
+    if not os.path.exists(path):
         abort(404)
-    return send_file(safe, as_attachment=True, download_name=os.path.basename(safe))
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
 
+# === Flask রান করা ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
