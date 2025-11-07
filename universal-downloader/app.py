@@ -3,9 +3,8 @@ from flask_cors import CORS
 import yt_dlp
 import os
 
-# --- Flask Setup ---
 app = Flask(__name__)
-CORS(app)  # ✅ Allow all frontend origins (Vercel etc.)
+CORS(app)  # ✅ Allow all origins
 
 DOWNLOAD_FOLDER = "downloads"
 if not os.path.exists(DOWNLOAD_FOLDER):
@@ -14,7 +13,6 @@ if not os.path.exists(DOWNLOAD_FOLDER):
 
 @app.route('/')
 def home():
-    """Basic health check route"""
     return jsonify({
         "message": "Universal Downloader API (Public Mode).",
         "status": "ok"
@@ -23,7 +21,6 @@ def home():
 
 @app.route('/api/download', methods=['POST'])
 def download_video():
-    """Main downloader API endpoint"""
     try:
         data = request.get_json()
         url = data.get("url")
@@ -35,7 +32,6 @@ def download_video():
 
         output_path = os.path.join(DOWNLOAD_FOLDER, f"{filename}.%(ext)s")
 
-        # --- yt-dlp options ---
         ydl_opts = {
             "outtmpl": output_path,
             "quiet": True,
@@ -52,12 +48,10 @@ def download_video():
                 }]
             })
 
-        # --- Download process ---
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             real_file = ydl.prepare_filename(info)
 
-        # --- For audio mode, convert to .mp3 ---
         if mode == "audio" and not real_file.endswith(".mp3"):
             base = os.path.splitext(real_file)[0]
             real_file = f"{base}.mp3"
@@ -74,7 +68,6 @@ def download_video():
 
 @app.route('/file/<path:filename>')
 def serve_file(filename):
-    """Serve downloaded file"""
     file_path = os.path.join(DOWNLOAD_FOLDER, filename)
     if os.path.exists(file_path):
         return send_file(file_path, as_attachment=True)
@@ -82,6 +75,5 @@ def serve_file(filename):
 
 
 if __name__ == '__main__':
-    # Render automatically sets PORT env var
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
