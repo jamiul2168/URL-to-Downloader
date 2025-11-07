@@ -5,6 +5,7 @@ import yt_dlp
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
+COOKIE_FILE = os.path.join(BASE_DIR, "cookies.txt")  # ✅ cookies.txt ফাইল
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 app = Flask(__name__)
@@ -22,6 +23,11 @@ def ydl_opts(mode: str, base_out: str) -> dict:
         "quiet": True,
         "merge_output_format": "mp4",
     }
+
+    # ✅ cookies.txt যুক্ত করা (যদি থাকে)
+    if os.path.exists(COOKIE_FILE):
+        opts["cookiefile"] = COOKIE_FILE
+
     if mode == "audio":
         opts.update({
             "format": "bestaudio/best",
@@ -43,14 +49,15 @@ def index():
 def api_download():
     data = request.get_json(silent=True) or request.form
     url = (data.get("url") or "").strip()
-    mode = (data.get("mode") or "video").strip().lower()   # "video" | "audio"
+    mode = (data.get("mode") or "video").strip().lower()
     filename = slugify(data.get("filename") or "downloaded_media")
 
     if not url:
         return jsonify({"ok": False, "error": "No URL provided."}), 400
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts(mode, filename)) as ydl:
+        opts = ydl_opts(mode, filename)
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
             filepath = None
@@ -60,17 +67,13 @@ def api_download():
                 if not filepath:
                     filepath = ydl.prepare_filename(info)
 
-        # common fallbacks for postprocessors
-        candidates = [
-            filepath or "",
-            os.path.join(DOWNLOAD_DIR, filename + ".mp3"),
-            os.path.join(DOWNLOAD_DIR, filename + ".m4a"),
-            os.path.join(DOWNLOAD_DIR, filename + ".mp4"),
-            os.path.join(DOWNLOAD_DIR, filename + ".webm"),
-            os.path.join(DOWNLOAD_DIR, filename + ".mkv"),
-        ]
-        final = next((p for p in candidates if p and os.path.exists(p)), None)
-        if not final:
+        # ✅ ফাইনাল ফাইল খোঁজা
+        for ext in [".mp3", ".m4a", ".mp4", ".webm", ".mkv"]:
+            full = os.path.join(DOWNLOAD_DIR, filename + ext)
+            if os.path.exists(full):
+                final = full
+                break
+        else:
             return jsonify({"ok": False, "error": "Download finished but file not found."}), 500
 
         size = os.path.getsize(final)
