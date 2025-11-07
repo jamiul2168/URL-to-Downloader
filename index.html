@@ -1,83 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>🌐 Universal Downloader</title>
-<style>
-  body {
-    font-family: "Poppins", sans-serif;
-    background: linear-gradient(135deg, #1f1c2c, #928dab);
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-  }
-  .glass-box {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(15px);
-    border-radius: 20px;
-    padding: 40px;
-    width: 90%;
-    max-width: 500px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    text-align: center;
-  }
-  h1 {
-    background: linear-gradient(to right, #00c6ff, #0072ff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 10px;
-  }
-  input, select {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    margin: 10px 0;
-    outline: none;
-  }
-  button {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    background: linear-gradient(90deg, #00c6ff, #0072ff);
-    color: white;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  button:hover { transform: scale(1.03); }
-  .progress {
-    width: 100%;
-    height: 10px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 8px;
-    overflow: hidden;
-    margin-top: 20px;
-  }
-  .bar {
-    width: 0%;
-    height: 100%;
-    background: linear-gradient(90deg, #4facfe, #00f2fe);
-    transition: width 0.4s ease;
-  }
-  .output {
-    margin-top: 20px;
-    color: #fff;
-    font-size: 14px;
-    word-break: break-word;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Universal Downloader 🌐</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: white;
+    }
+    .glass {
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      padding: 40px;
+      width: 90%;
+      max-width: 420px;
+      text-align: center;
+    }
+    h1 {
+      background: linear-gradient(to right, #00c6ff, #0072ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      margin-top: 12px;
+      font-size: 16px;
+      outline: none;
+    }
+    input {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+    select {
+      background: rgba(255,255,255,0.15);
+      color: white;
+    }
+    button {
+      background: linear-gradient(45deg, #0072ff, #00c6ff);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      transform: scale(1.03);
+    }
+    .progress {
+      height: 10px;
+      width: 100%;
+      background: rgba(255,255,255,0.2);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4facfe, #00f2fe);
+      transition: width 0.4s ease;
+    }
+    .output {
+      margin-top: 20px;
+      font-size: 14px;
+      word-break: break-word;
+    }
+  </style>
 </head>
 <body>
-  <div class="glass-box">
+  <div class="glass">
     <h1>Universal Downloader</h1>
-    <p>Paste your video link below 🎬</p>
-    <input type="text" id="url" placeholder="Enter video URL" />
+    <p>Paste your video URL 👇</p>
+    <input type="text" id="url" placeholder="Enter any video link" />
     <select id="mode">
       <option value="video">🎥 Video</option>
       <option value="audio">🎵 Audio (MP3)</option>
@@ -87,42 +93,37 @@
     <div class="output" id="output"></div>
   </div>
 
-<script>
-const backend = "https://url-to-downloader.onrender.com/api/download";
+  <script>
+    const backend = "https://url-to-downloader.onrender.com/api/download"; // তোমার Render API
 
-document.getElementById("downloadBtn").addEventListener("click", async () => {
-  const url = document.getElementById("url").value.trim();
-  const mode = document.getElementById("mode").value;
-  const bar = document.getElementById("bar");
-  const out = document.getElementById("output");
-  
-  if (!url) return alert("Please enter a valid video URL!");
-
-  bar.style.width = "30%";
-  out.innerHTML = "Processing...";
-
-  try {
-    const res = await fetch(backend, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, filename: "downloaded_media", mode })
+    document.getElementById("downloadBtn").addEventListener("click", async () => {
+      const url = document.getElementById("url").value.trim();
+      const mode = document.getElementById("mode").value;
+      const bar = document.getElementById("bar");
+      const out = document.getElementById("output");
+      if (!url) return alert("Please enter a video URL!");
+      out.innerHTML = "⏳ Processing...";
+      bar.style.width = "30%";
+      try {
+        const res = await fetch(backend, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, filename: "media", mode })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          bar.style.width = "100%";
+          const file = `${backend.replace('/api/download','')}/file/${data.file}`;
+          out.innerHTML = `<b>✅ Download Ready:</b><br><a href="${file}" style="color:#00f2fe;" download>Click here to save file</a>`;
+        } else {
+          bar.style.width = "0%";
+          out.innerHTML = `❌ ${data.error}`;
+        }
+      } catch (err) {
+        bar.style.width = "0%";
+        out.innerHTML = "⚠️ Failed to connect. Please try again.";
+      }
     });
-
-    const data = await res.json();
-    if (data.ok) {
-      bar.style.width = "100%";
-      out.innerHTML = `<b>✅ Download Ready:</b> <br>
-        <a href="${backend.replace('/api/download','')}/file/${data.file}" 
-        style="color:#00f2fe; text-decoration:none;" download>Click here to download</a>`;
-    } else {
-      bar.style.width = "0%";
-      out.innerHTML = `❌ Error: ${data.error}`;
-    }
-  } catch (e) {
-    bar.style.width = "0%";
-    out.innerHTML = "⚠️ Connection failed! Please try again.";
-  }
-});
-</script>
+  </script>
 </body>
 </html>
