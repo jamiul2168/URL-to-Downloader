@@ -1,22 +1,28 @@
-import os, re, uuid
+import os, re, uuid, base64
 from flask import Flask, request, render_template, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 import yt_dlp
 
-# === ফোল্ডার সেটআপ ===
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
+COOKIE_PATH = os.path.join(BASE_DIR, "cookies.txt")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# === Flask App তৈরি ===
+# ✅ Base64 ডিকোড করে cookies.txt বানানো
+cookie_b64 = os.environ.get("COOKIE_B64", "")
+if cookie_b64:
+    try:
+        with open(COOKIE_PATH, "wb") as f:
+            f.write(base64.b64decode(cookie_b64))
+    except Exception as e:
+        print("Cookie decode error:", e)
+
 app = Flask(__name__)
 
-# === Helper Function ===
 def slugify(text: str) -> str:
     text = re.sub(r"[^\w\-. ]+", "", (text or "")).strip().replace(" ", "_")
     return secure_filename(text) or f"file_{uuid.uuid4().hex}"
 
-# === yt-dlp অপশন ===
 def ydl_opts(mode: str, base_out: str) -> dict:
     opts = {
         "outtmpl": os.path.join(DOWNLOAD_DIR, base_out + ".%(ext)s"),
@@ -27,14 +33,10 @@ def ydl_opts(mode: str, base_out: str) -> dict:
         "merge_output_format": "mp4",
     }
 
-    # ✅ Render Environment Variable থেকে cookies তৈরি
-    cookie_data = os.environ.get("COOKIE_TEXT", "")
-    if cookie_data:
-        with open(os.path.join(BASE_DIR, "cookies.txt"), "w", encoding="utf-8") as f:
-            f.write(cookie_data)
-        opts["cookiefile"] = os.path.join(BASE_DIR, "cookies.txt")
+    # ✅ cookies যুক্ত করা
+    if os.path.exists(COOKIE_PATH):
+        opts["cookiefile"] = COOKIE_PATH
 
-    # === Audio বা Video সেটিং ===
     if mode == "audio":
         opts.update({
             "format": "bestaudio/best",
@@ -48,12 +50,10 @@ def ydl_opts(mode: str, base_out: str) -> dict:
         opts.update({"format": "bv*+ba/b"})
     return opts
 
-# === হোমপেজ ===
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
 
-# === ডাউনলোড API ===
 @app.route("/api/download", methods=["POST"])
 def api_download():
     data = request.get_json(silent=True) or request.form
@@ -69,14 +69,6 @@ def api_download():
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
-            filepath = None
-            if isinstance(info, dict):
-                if info.get("requested_downloads"):
-                    filepath = info["requested_downloads"][0].get("filepath")
-                if not filepath:
-                    filepath = ydl.prepare_filename(info)
-
-        # === ফাইনাল ফাইল খোঁজা ===
         final = None
         for ext in [".mp3", ".m4a", ".mp4", ".webm", ".mkv"]:
             path = os.path.join(DOWNLOAD_DIR, filename + ext)
@@ -100,7 +92,6 @@ def api_download():
     except Exception as e:
         return jsonify({"ok": False, "error": f"Unexpected error: {e}"}), 500
 
-# === ফাইল সার্ভ করা ===
 @app.route("/file/<path:filename>", methods=["GET"])
 def serve_file(filename):
     path = os.path.join(DOWNLOAD_DIR, os.path.basename(filename))
@@ -108,6 +99,5 @@ def serve_file(filename):
         abort(404)
     return send_file(path, as_attachment=True, download_name=os.path.basename(path))
 
-# === Flask রান করা ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
