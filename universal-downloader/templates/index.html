@@ -1,87 +1,128 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>🌐 Reliable All-in-One Downloader</title>
-  <link rel="stylesheet" href="/static/style.css"/>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🌐 Universal Downloader</title>
+<style>
+  body {
+    font-family: "Poppins", sans-serif;
+    background: linear-gradient(135deg, #1f1c2c, #928dab);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .glass-box {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 40px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    text-align: center;
+  }
+  h1 {
+    background: linear-gradient(to right, #00c6ff, #0072ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+  }
+  input, select {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    margin: 10px 0;
+    outline: none;
+  }
+  button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #00c6ff, #0072ff);
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  button:hover { transform: scale(1.03); }
+  .progress {
+    width: 100%;
+    height: 10px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 20px;
+  }
+  .bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #4facfe, #00f2fe);
+    transition: width 0.4s ease;
+  }
+  .output {
+    margin-top: 20px;
+    color: #fff;
+    font-size: 14px;
+    word-break: break-word;
+  }
+</style>
 </head>
 <body>
-  <div class="wrap glass">
-    <h1 class="title">🌐 Reliable All-in-One Downloader</h1>
-    <p class="sub">Paste any video link (YouTube, Facebook, Drive) or a direct file link.</p>
-
-    <div class="group">
-      <label>URL</label>
-      <input id="url" type="text" placeholder="Paste your video or file URL here"/>
-    </div>
-
-    <div class="group">
-      <label>Save As</label>
-      <input id="filename" type="text" placeholder="e.g., my_video" value="downloaded_media"/>
-    </div>
-
-    <div class="group">
-      <label>Format</label>
-      <div class="toggle">
-        <button id="btnVideo" class="btn active" data-mode="video">Video</button>
-        <button id="btnAudio" class="btn" data-mode="audio">Audio (MP3)</button>
-      </div>
-    </div>
-
-    <button id="start" class="primary">Start Download</button>
-
-    <div id="status" class="alert info" style="display:none;"></div>
-
-    <div id="progress" class="bar" style="display:none;">
-      <div class="inner">Working…</div>
-    </div>
-
-    <div id="result"></div>
-
-    <div class="logs">
-      <div class="logs-title">Logs & Tips</div>
-      <pre id="logbox">Logs will appear here after completion.</pre>
-    </div>
+  <div class="glass-box">
+    <h1>Universal Downloader</h1>
+    <p>Paste your video link below 🎬</p>
+    <input type="text" id="url" placeholder="Enter video URL" />
+    <select id="mode">
+      <option value="video">🎥 Video</option>
+      <option value="audio">🎵 Audio (MP3)</option>
+    </select>
+    <button id="downloadBtn">Start Download</button>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="output" id="output"></div>
   </div>
 
 <script>
-let mode = "video";
-const $ = id => document.getElementById(id);
-const urlEl = $("url"), nameEl = $("filename"), statusEl = $("status");
-const resultEl = $("result"), logbox = $("logbox"), startBtn = $("start");
-const progress = $("progress"), btnVideo = $("btnVideo"), btnAudio = $("btnAudio");
+const backend = "https://url-to-downloader.onrender.com/api/download";
 
-btnVideo.onclick = () => { mode = "video"; btnVideo.classList.add("active"); btnAudio.classList.remove("active"); }
-btnAudio.onclick = () => { mode = "audio"; btnAudio.classList.add("active"); btnVideo.classList.remove("active"); }
+document.getElementById("downloadBtn").addEventListener("click", async () => {
+  const url = document.getElementById("url").value.trim();
+  const mode = document.getElementById("mode").value;
+  const bar = document.getElementById("bar");
+  const out = document.getElementById("output");
+  
+  if (!url) return alert("Please enter a valid video URL!");
 
-function showStatus(html, cls="info"){ statusEl.style.display="block"; statusEl.className="alert "+cls; statusEl.innerHTML=html; }
-function setProgress(v){ progress.style.display = v ? "block" : "none"; }
+  bar.style.width = "30%";
+  out.innerHTML = "Processing...";
 
-$("start").onclick = async () => {
-  resultEl.innerHTML = ""; logbox.textContent = "Starting download…";
-  const url = urlEl.value.trim(), filename = nameEl.value.trim();
-  if(!url || !filename){ showStatus("<b>Error:</b> Please provide both URL and filename.","error"); return; }
-
-  startBtn.disabled = true; setProgress(true); showStatus("<i>Initiating download…</i>","info");
-  try{
-    const r = await fetch("/api/download", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({url, filename, mode})
+  try {
+    const res = await fetch(backend, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, filename: "downloaded_media", mode })
     });
-    const data = await r.json();
-    if(!data.ok){ showStatus("<b>Download Error:</b> "+(data.error||"Unknown"),"error"); logbox.textContent = data.error || "No details."; }
-    else{
-      showStatus("<b>Download successful!</b> File is ready.","success");
-      logbox.textContent = `Downloaded file: ${data.file}\nSize: ${data.size} bytes`;
-      resultEl.innerHTML = `<a class="dl" href="${data.download_url}">Click Here to Download "${data.file}"</a>`;
+
+    const data = await res.json();
+    if (data.ok) {
+      bar.style.width = "100%";
+      out.innerHTML = `<b>✅ Download Ready:</b> <br>
+        <a href="${backend.replace('/api/download','')}/file/${data.file}" 
+        style="color:#00f2fe; text-decoration:none;" download>Click here to download</a>`;
+    } else {
+      bar.style.width = "0%";
+      out.innerHTML = `❌ Error: ${data.error}`;
     }
-  }catch(e){
-    showStatus("<b>Unexpected error:</b> "+e.message,"error"); logbox.textContent = e.stack || String(e);
-  }finally{
-    setProgress(false); startBtn.disabled = false;
+  } catch (e) {
+    bar.style.width = "0%";
+    out.innerHTML = "⚠️ Connection failed! Please try again.";
   }
-}
+});
 </script>
 </body>
 </html>
